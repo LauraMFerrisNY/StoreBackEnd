@@ -1,7 +1,7 @@
 const pg = require('pg');
 const client = new pg.Client(process.env.DATABASE_URL || 'postgresql://lauraunix:xinu2413@localhost:5432/store_db');
 const uuid = require('uuid');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const JWT = process.env.JWT || 'shhh';
 
@@ -135,13 +135,13 @@ const findUserWithToken = async(token)=> {
   return response.rows[0];
 };
 
-const fetchUsers = async()=> {
-  const SQL = `
-    SELECT id, username FROM users;
-  `;
-  const response = await client.query(SQL);
-  return response.rows;
-};
+// const fetchUsers = async()=> {
+//   const SQL = `
+//     SELECT id, username FROM users;
+//   `;
+//   const response = await client.query(SQL);
+//   return response.rows;
+// };
 
 const fetchProducts = async()=> {
   const SQL = `
@@ -151,17 +151,33 @@ const fetchProducts = async()=> {
   return response.rows;
 };
 
+const fetchProduct = async(id)=> {
+  const SQL = `
+    SELECT * FROM products WHERE id = $1;
+  `;
+  const response = await client.query(SQL, [id]);
+  return response.rows;
+};
+
 const fetchProductReviews = async(product_id)=> {
   const SQL = `
-    SELECT * FROM products where product_id = $1
+    SELECT * FROM reviews WHERE product_id = $1
   `;
   const response = await client.query(SQL, [product_id]);
   return response.rows;
 };
 
+const fetchProductReview = async(product_id, id)=> {
+  const SQL = `
+    SELECT * FROM reviews WHERE product_id = $1 AND id = $2
+  `;
+  const response = await client.query(SQL, [product_id, id]);
+  return response.rows;
+};
+
 const fetchUserReviews = async(user_id)=> {
   const SQL = `
-    SELECT * FROM reviews where user_id = $1
+    SELECT * FROM reviews WHERE user_id = $1
   `;
   const response = await client.query(SQL, [user_id]);
   return response.rows;
@@ -169,7 +185,7 @@ const fetchUserReviews = async(user_id)=> {
 
 const fetchReviewComments = async(review_id)=> {
   const SQL = `
-    SELECT * FROM comments where review_id = $1
+    SELECT * FROM comments WHERE review_id = $1
   `;
   const response = await client.query(SQL, [review_id]);
   return response.rows;
@@ -177,7 +193,7 @@ const fetchReviewComments = async(review_id)=> {
 
 const fetchUserComments = async(user_id)=> {
   const SQL = `
-    SELECT * FROM reviews where user_id = $1
+    SELECT * FROM reviews WHERE user_id = $1
   `;
   const response = await client.query(SQL, [user_id]);
   return response.rows;
@@ -210,9 +226,11 @@ module.exports = {
   createProduct,
   createReview,
   createComment,
-  fetchUsers,
+  //fetchUsers,
   fetchProducts,
+  fetchProduct,
   fetchProductReviews,
+  fetchProductReview,
   fetchUserReviews,
   fetchReviewComments,
   fetchUserComments,
