@@ -18,22 +18,22 @@ const createTables = async()=> {
     );
     CREATE TABLE products(
       id UUID PRIMARY KEY,
-      name VARCHAR(20) NOT NULL UNIQUE
+      name VARCHAR(50) NOT NULL UNIQUE
     );
     CREATE TABLE reviews(
       id UUID PRIMARY KEY,
       user_id UUID REFERENCES users(id) NOT NULL,
       product_id UUID REFERENCES products(id) NOT NULL,
       CONSTRAINT unique_user_id_product_id UNIQUE (user_id, product_id),
-      written_rating VARCHAR(255) NOT NULL,
-      score_rating VARCHAR(255) NOT NULL
+      written_rating VARCHAR(1000) NOT NULL,
+      score_rating VARCHAR(5) NOT NULL
     );
     CREATE TABLE comments(
       id UUID PRIMARY KEY,
       review_id UUID REFERENCES reviews(id) NOT NULL,
       user_id UUID REFERENCES users(id) NOT NULL,
       product_id UUID REFERENCES products(id) NOT NULL,
-      comment VARCHAR(255) NOT NULL
+      comment VARCHAR(500) NOT NULL
     );
   `;
   await client.query(SQL);
@@ -43,7 +43,7 @@ const createUser = async({ username, password})=> {
   const SQL = `
     INSERT INTO users(id, username, password) 
     VALUES($1, $2, $3) 
-    ETURNING *
+    RETURNING *
   `;
   const response = await client.query(SQL, [uuid.v4(), username, await bcrypt.hash(password, 5)]);
   return response.rows[0];
@@ -85,6 +85,14 @@ const deleteReview = async({ user_id, id })=> {
     WHERE user_id=$1 AND id=$2
   `;
   await client.query(SQL, [user_id, id]);
+};
+
+const deleteComments = async(review_id)=> {
+  const SQL = `
+    DELETE FROM comments 
+    WHERE review_id=$1
+  `;
+  await client.query(SQL, [review_id]);
 };
 
 const deleteComment = async({ user_id, id })=> {
@@ -135,14 +143,6 @@ const findUserWithToken = async(token)=> {
   return response.rows[0];
 };
 
-// const fetchUsers = async()=> {
-//   const SQL = `
-//     SELECT id, username FROM users;
-//   `;
-//   const response = await client.query(SQL);
-//   return response.rows;
-// };
-
 const fetchProducts = async()=> {
   const SQL = `
     SELECT * FROM products;
@@ -167,7 +167,7 @@ const fetchProductReviews = async(product_id)=> {
   return response.rows;
 };
 
-const fetchProductReview = async(product_id, id)=> {
+const fetchProductReview = async({product_id, id})=> {
   const SQL = `
     SELECT * FROM reviews WHERE product_id = $1 AND id = $2
   `;
@@ -183,39 +183,39 @@ const fetchUserReviews = async(user_id)=> {
   return response.rows;
 };
 
-const fetchReviewComments = async(review_id)=> {
+const fetchReviewComments = async({product_id, review_id})=> {
   const SQL = `
-    SELECT * FROM comments WHERE review_id = $1
+    SELECT * FROM comments WHERE product_id=$1 AND review_id = $2
   `;
-  const response = await client.query(SQL, [review_id]);
+  const response = await client.query(SQL, [product_id, review_id]);
   return response.rows;
 };
 
 const fetchUserComments = async(user_id)=> {
   const SQL = `
-    SELECT * FROM reviews WHERE user_id = $1
+    SELECT * FROM comments WHERE user_id = $1
   `;
   const response = await client.query(SQL, [user_id]);
   return response.rows;
 };
 
-const updateReview = async({ written_rating, score_rating, id })=> {
+const updateReview = async({ written_rating, score_rating, id, user_id })=> {
   const SQL = `
     UPDATE reviews 
     SET  written_rating=$1, score_rating=$2
-    WHERE id=$3 RETURNING *
+    WHERE id=$3 AND user_id=$4 RETURNING *
   `; 
-  const response = await client.query(SQL, [written_rating, score_rating, id]);
+  const response = await client.query(SQL, [written_rating, score_rating, id, user_id]);
   return response.rows;
 };
 
-const updateComment = async({ comment, id })=> {
+const updateComment = async({ comment, id, user_id })=> {
   const SQL = `
-    UPDATE reviews 
+    UPDATE comments 
     SET  comment=$1
-    WHERE id=$2 RETURNING *
+    WHERE id=$2 AND user_id=$3 RETURNING *
   `; 
-  const response = await client.query(SQL, [comment, id]);
+  const response = await client.query(SQL, [comment, id, user_id]);
   return response.rows;
 };
 
@@ -226,7 +226,6 @@ module.exports = {
   createProduct,
   createReview,
   createComment,
-  //fetchUsers,
   fetchProducts,
   fetchProduct,
   fetchProductReviews,
@@ -235,6 +234,7 @@ module.exports = {
   fetchReviewComments,
   fetchUserComments,
   deleteReview,
+  deleteComments,
   deleteComment,
   authenticate,
   findUserWithToken,
